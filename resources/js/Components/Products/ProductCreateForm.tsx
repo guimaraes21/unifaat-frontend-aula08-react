@@ -15,20 +15,43 @@ export default function ProductCreateForm({ onCreate }: ProductCreateFormProps) 
         setName(event.target.value);
     }
 
-    const onCreateHandler = (event: React.FormEvent<HTMLFormElement>) => {
+    const onCreateHandler = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        console.log(name, parsePriceToThousand(price));
+        setErrorMsg(null);
+
+        if (!name.trim()) {
+            setErrorMsg("Por favor, informe o nome do produto");
+            return;
+        }
+
+        if (!price.trim()) {
+            setErrorMsg("Por favor, informe o preço do produto");
+            return;
+        }
+
+        const priceThousand = parsePriceToThousand(price);
+        if (priceThousand === null || priceThousand <= 0) {
+            setErrorMsg("Por favor, informe um preço válido");
+            return;
+        }
+
+        if (onCreate) {
+            try {
+                await onCreate(name, price);
+                setName("");
+                setPrice("");
+            } catch (error) {
+                setErrorMsg((error as Error).message || "Erro ao cadastrar produto");
+            }
+        }
     };
 
-    // Converte string "12,34" / "12.34" para price_times_thousand (int)
     const parsePriceToThousand = (txt: string): number | null => {
         const clean = txt.replace(/\s/g, "");
-        // troca vírgula por ponto e remove tudo que não for dígito/ponto
         const normalized = clean.replace(",", ".").replace(/[^0-9.]/g, "");
         if (!normalized) return null;
         const n = Number(normalized);
         if (Number.isNaN(n)) return null;
-        // multiplica por 1000 e arredonda
         return Math.round(n * 1000);
     };
 

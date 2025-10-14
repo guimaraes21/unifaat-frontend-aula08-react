@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { ListApi, ProductModel } from "../../app.types";
 import productListApi from "../../api/productListApi";
+import productDeleteApi from "../../api/productDeleteApi";
+import productCreateApi from "../../api/productCreateApi";
 import ProductCreateForm from "./ProductCreateForm";
 
 export default function ProductsTwoCols() {
@@ -14,6 +16,48 @@ export default function ProductsTwoCols() {
             setData(resp);
         })();
     }, []);
+
+    const handleDelete = async (id: number) => {
+        const resp = await productDeleteApi(id);
+        if ("error" in resp) {
+            alert("Erro ao excluir produto: " + resp.error);
+            return;
+        }
+        if (data && data !== "error") {
+            setData({
+                ...data,
+                rows: data.rows.filter(p => p.id !== id)
+            });
+        }
+    };
+
+    const handleCreate = async (name: string, priceStr: string) => {
+        const parsePriceToThousand = (txt: string): number | null => {
+            const clean = txt.replace(/\s/g, "");
+            const normalized = clean.replace(",", ".").replace(/[^0-9.]/g, "");
+            if (!normalized) return null;
+            const n = Number(normalized);
+            if (Number.isNaN(n)) return null;
+            return Math.round(n * 1000);
+        };
+
+        const price = parsePriceToThousand(priceStr);
+        if (!price) {
+            throw new Error("Preço inválido");
+        }
+
+        const resp = await productCreateApi(name, price);
+        if ("error" in resp) {
+            throw new Error(resp.error);
+        }
+
+        if (data && data !== "error") {
+            setData({
+                ...data,
+                rows: [resp, ...data.rows]
+            });
+        }
+    };
 
     const formatPrice = (ptt: number) =>
         (ptt / 1000).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -37,7 +81,7 @@ export default function ProductsTwoCols() {
 
     return (
         <div className="row g-4">
-            <ProductCreateForm />
+            <ProductCreateForm onCreate={handleCreate} />
 
             <div className="col-12 col-lg-8">
                 {data.rows.length === 0 ? (
@@ -64,7 +108,11 @@ export default function ProductsTwoCols() {
                                     <div className="card-footer bg-white border-0 pt-0">
                                         <div className="d-flex justify-content-between align-items-center">
                                             <span className="badge rounded-pill text-bg-primary">#{p.id}</span>
-                                            <button type="button" className="btn btn-sm btn-outline-danger">
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm btn-outline-danger"
+                                                onClick={() => handleDelete(p.id)}
+                                            >
                                                 Excluir
                                             </button>
                                         </div>
